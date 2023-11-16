@@ -1,0 +1,91 @@
+---
+# -----------------------------------------------------------------------------
+# ScanlogD Deploy playbook (Incomplete...)
+# -----------------------------------------------------------------------------
+- hosts: all
+  name: Deploy / Upgrade ScanlogD agent
+  tasks:
+# -----------------------------------------------------------------------------
+  - name: Create scanlogd user with nologin
+    user:
+      name: scanlogd
+      shell: /usr/sbin/nologin
+      createhome: no
+    when: ansible_facts['distribution'] == "CentOS" || ansible_facts['distribution'] == "Ubuntu"
+# -----------------------------------------------------------------------------
+  - name: Install required packages (CentOS) for compiling source
+    yum:
+      name:
+        - gcc
+        - libcurl-devel
+      state: latest
+    when: ansible_facts['distribution'] == "CentOS"
+# -----------------------------------------------------------------------------
+  - name: Install required packages (Ubuntu) for compiling source
+    apt:
+      name:
+        - gcc
+        - libcurl-devel
+      state: latest
+    when: ansible_facts['distribution'] == "Ubuntu"
+# -----------------------------------------------------------------------------
+  - name: Copy over scanlogd source
+    copy:
+      src: source/linux/scanlogd-2.2.8.tar.xz
+      dest: /tmp/
+    when: ansible_facts['distribution'] == "CentOS" || ansible_facts['distribution'] == "Ubuntu"
+# -----------------------------------------------------------------------------
+  - name: Create directory for unarchived source
+    file:
+      path: /tmp/scanlogd
+      state: directory
+      mode: '0755'
+    when: ansible_facts['distribution'] == "CentOS" || ansible_facts['distribution'] == "Ubuntu"
+# -----------------------------------------------------------------------------
+  - name: Unarchive scanlogd source to /tmp/scanlogd/
+    unarchive:
+      src: /tmp/scanlogd-2.2.8.tar.xz
+      dest: /tmp/scanlogd/
+      remote_src: yes
+    when: ansible_facts['distribution'] == "CentOS" || ansible_facts['distribution'] == "Ubuntu"
+# -----------------------------------------------------------------------------
+  - name: Compile scanlogd binary from source
+    shell: |
+      cd /tmp/scanlogd/
+      make linux
+# -----------------------------------------------------------------------------
+  - name: Create directory for compiled binary
+    file:
+      path: /opt/scanlogd/
+      state: directory
+      mode: '0755'
+    when: ansible_facts['distribution'] == "CentOS" || ansible_facts['distribution'] == "Ubuntu"
+# -----------------------------------------------------------------------------
+  - name: Move compiled binary to /opt/scanlogd
+    command: mv /tmp/scanlogd/scanlogd /opt/scanlogd/
+# -----------------------------------------------------------------------------
+  - name: Set owner and group on scanlogd binary
+    file:
+      path: /opt/scanlogd/scanlogd
+      owner: scanlogd
+      group: scanlogd
+# -----------------------------------------------------------------------------
+  - name: Cleanup and Remove /tmp/scanlogd/
+    file:
+      path: /tmp/scanlogd/
+      state: absent
+      force: yes
+    when: ansible_facts['distribution'] == "CentOS" || ansible_facts['distribution'] == "Ubuntu"
+# -----------------------------------------------------------------------------
+  - name: Cleanup scanlogd tarball
+    file:
+      path: /tmp/scanlogd-2.2.8.tar.xz
+      state: absent
+    when: ansible_facts['distribution'] == "CentOS" || ansible_facts['distribution'] == "Ubuntu"
+# -----------------------------------------------------------------------------
+# copy over systemd unit file
+# -----------------------------------------------------------------------------
+# reload systemd (systemctl daemon reload)
+# -----------------------------------------------------------------------------
+# enable systemd unit file
+# -----------------------------------------------------------------------------
